@@ -3,7 +3,7 @@ import axios from 'axios';
 // Configuração do Axios para conectar com seu backend
 const api = axios.create({
   // @ts-ignore - Ignora o erro de tipagem se o env não estiver mapeado
-  baseURL: (import.meta.env.VITE_API_URL as string) || 'https://agendamento-projeto-production.up.railway.app',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://agendamento-projeto-production.up.railway.app',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

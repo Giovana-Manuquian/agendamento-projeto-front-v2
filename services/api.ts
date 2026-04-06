@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Configuração do Axios para conectar com seu backend
 const api = axios.create({
-  baseURL: 'agendamento-projeto-production.up.railway.app',
+  baseURL: 'https://agendamento-projeto-production.up.railway.app',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

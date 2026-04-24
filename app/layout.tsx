@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext' // Importação do provedor de autenticação
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -44,8 +45,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable} ${dmSans.variable}`}>
       <body className="font-sans antialiased min-h-screen bg-background">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <AuthProvider> {/* O AuthProvider deve envolver o children */}
+          {children}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </AuthProvider>
       </body>
     </html>
   )

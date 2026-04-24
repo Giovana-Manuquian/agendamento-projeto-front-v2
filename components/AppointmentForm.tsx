@@ -2,23 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { getServices, createAppointment, type Service } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext'; // Importação do contexto
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarDays, User, Mail, Store, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CalendarDays, Store, CheckCircle2, AlertCircle, Loader2, UserCheck } from 'lucide-react';
 
 export default function AppointmentForm() {
+  const { user } = useAuth(); // Acessamos o usuário logado
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Agora o formData só precisa da data e do ID do serviço
   const [formData, setFormData] = useState({
-    clientName: '',
-    clientEmail: '',
     date: '',
     serviceId: ''
   });
+  
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -29,13 +32,27 @@ export default function AppointmentForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificação de segurança: impede o envio se não houver usuário
+    if (!user) {
+      setMessage({ type: 'error', text: 'Você precisa estar logado para agendar.' });
+      return;
+    }
+
     setSubmitting(true);
     setMessage(null);
 
     try {
-      await createAppointment(formData);
+      // Mesclamos os dados do formulário com o ID do usuário logado
+      const payload = {
+        ...formData,
+        clientId: user.id
+      };
+
+      await createAppointment(payload);
+      
       setMessage({ type: 'success', text: 'Agendamento realizado com sucesso!' });
-      setFormData({ clientName: '', clientEmail: '', date: '', serviceId: '' });
+      setFormData({ date: '', serviceId: '' });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error 
         ? error.message 
@@ -57,52 +74,37 @@ export default function AppointmentForm() {
           </div>
           <div>
             <CardTitle className="text-xl font-serif">Novo Agendamento</CardTitle>
-            <CardDescription>Preencha os dados para reservar seu horario</CardDescription>
+            <CardDescription>Escolha o melhor horário para você</CardDescription>
           </div>
         </div>
       </CardHeader>
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Nome */}
-          <div className="space-y-2">
-            <Label htmlFor="clientName" className="text-sm font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Nome Completo
-            </Label>
-            <Input
-              id="clientName"
-              type="text"
-              placeholder="Digite seu nome"
-              value={formData.clientName}
-              onChange={e => setFormData({...formData, clientName: e.target.value})}
-              required
-              className="h-11"
-            />
-          </div>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <Label htmlFor="clientEmail" className="text-sm font-medium flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              E-mail
-            </Label>
-            <Input
-              id="clientEmail"
-              type="email"
-              placeholder="seu@email.com"
-              value={formData.clientEmail}
-              onChange={e => setFormData({...formData, clientEmail: e.target.value})}
-              required
-              className="h-11"
-            />
-          </div>
+          
+          {/* Informação do Usuário (Substitui os inputs de nome/email) */}
+          {user ? (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <UserCheck className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Agendando como:</p>
+                <p className="text-sm font-medium">{user.name}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <p className="text-sm font-medium text-destructive">
+                Faça login para realizar um agendamento.
+              </p>
+            </div>
+          )}
 
           {/* Data e Hora */}
           <div className="space-y-2">
             <Label htmlFor="date" className="text-sm font-medium flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              Data e Horario
+              Data e Horário
             </Label>
             <Input
               id="date"
@@ -111,6 +113,7 @@ export default function AppointmentForm() {
               onChange={e => setFormData({...formData, date: e.target.value})}
               required
               className="h-11"
+              disabled={!user}
             />
           </div>
 
@@ -118,7 +121,7 @@ export default function AppointmentForm() {
           <div className="space-y-2">
             <Label htmlFor="service" className="text-sm font-medium flex items-center gap-2">
               <Store className="h-4 w-4 text-muted-foreground" />
-              Servico
+              Serviço
             </Label>
             {loading ? (
               <div className="h-11 rounded-md border border-input bg-muted animate-pulse" />
@@ -127,9 +130,10 @@ export default function AppointmentForm() {
                 value={formData.serviceId}
                 onValueChange={(value) => setFormData({...formData, serviceId: value})}
                 required
+                disabled={!user}
               >
                 <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Selecione o servico" />
+                  <SelectValue placeholder="Selecione o serviço" />
                 </SelectTrigger>
                 <SelectContent>
                   {services.map((service) => (
@@ -147,10 +151,10 @@ export default function AppointmentForm() {
             )}
           </div>
 
-          {/* Resumo do Serviço Selecionado */}
+          {/* Resumo do Serviço */}
           {selectedService && (
             <div className="rounded-lg bg-secondary/50 p-4 border border-border">
-              <p className="text-sm text-muted-foreground">Servico selecionado:</p>
+              <p className="text-sm text-muted-foreground">Serviço selecionado:</p>
               <div className="mt-1 flex items-center justify-between">
                 <span className="font-medium text-foreground">{selectedService.name}</span>
                 <span className="font-bold text-primary">
@@ -180,7 +184,7 @@ export default function AppointmentForm() {
           <Button 
             type="submit" 
             className="w-full h-12 text-base font-medium"
-            disabled={submitting || loading}
+            disabled={submitting || loading || !user}
           >
             {submitting ? (
               <>
@@ -188,12 +192,12 @@ export default function AppointmentForm() {
                 Agendando...
               </>
             ) : (
-              'Reservar Horario'
+              'Reservar Horário'
             )}
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            Voce recebera um e-mail de confirmacao apos o agendamento.
+            Você receberá um e-mail de confirmação após o agendamento.
           </p>
         </form>
       </CardContent>
